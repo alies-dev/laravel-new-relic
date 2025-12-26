@@ -78,6 +78,14 @@ class NewRelicTransactionHandler
         $commandString = $this->getCommandString();
         $commandName = Str::before($commandString, ' ');
 
+        // TEMPORARY: Always log CLI requests to trace the "artisan" transaction issue
+        Log::debug('[NewRelic] cliRequests called', [
+            'commandName' => $commandName,
+            'commandString' => $commandString,
+            'commandArgs' => $commandArgs,
+            'serverArgv' => $_SERVER['argv'] ?? 'not set',
+        ]);
+
         // Debug: Log when we can't determine the command name properly
         if ($commandName === '' || $commandName === 'artisan') {
             Log::debug('[NewRelic] cliRequests: problematic command name', [
