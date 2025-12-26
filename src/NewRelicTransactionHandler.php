@@ -74,13 +74,38 @@ class NewRelicTransactionHandler
             return;
         }
 
+        $commandArgs = $this->getCommandArgs();
+        $commandString = $this->getCommandString();
+        $commandName = Str::before($commandString, ' ');
+
+        // Debug: Log when we can't determine the command name properly
+        if ($commandName === '' || $commandName === 'artisan') {
+            Log::debug('[NewRelic] cliRequests: problematic command name', [
+                'commandName' => $commandName,
+                'commandString' => $commandString,
+                'commandArgs' => $commandArgs,
+                'serverArgv' => $_SERVER['argv'] ?? 'not set',
+                'requestServerArgv' => request()->server('argv'),
+            ]);
+        }
+
+        // Skip early naming for ignored commands to avoid "artisan" pollution
+        if ($this->shouldIgnoreCommand($commandName)) {
+            return;
+        }
+
+        // Skip if we couldn't determine a proper command name
+        if ($commandName === '' || $commandName === 'artisan') {
+            return;
+        }
+
         // Apply our own early determination of the transaction name,
         // and tell New Relic this is a background job.
         app(NewRelicTransaction::class)
-            ->setName(Str::before($this->getCommandString(), ' '))
+            ->setName($commandName)
             ->addParameter(
                 'command',
-                collect($this->getCommandArgs())->implode(' ')
+                collect($commandArgs)->implode(' ')
             )
             ->background();
     }
@@ -214,6 +239,15 @@ class NewRelicTransactionHandler
         app('events')->listen(
             CommandStarting::class,
             function (CommandStarting $commandStarting): void {
+                // Debug: Log when command is empty or just 'artisan'
+                if (empty($commandStarting->command) || $commandStarting->command === 'artisan') {
+                    Log::debug('[NewRelic] artisanCommands: problematic command in CommandStarting', [
+                        'command' => $commandStarting->command,
+                        'commandArgs' => $this->getCommandArgs(),
+                        'serverArgv' => $_SERVER['argv'] ?? 'not set',
+                    ]);
+                }
+
                 if ($this->shouldIgnoreCommand($commandStarting->command)) {
                     app(NewRelicTransaction::class)->ignore();
 
@@ -320,13 +354,21 @@ class NewRelicTransactionHandler
 
     /**
      * Get any command arguments passed in to the current request.
+     *
+     * Uses $_SERVER['argv'] directly as request()->server('argv') may not be
+     * available early in the boot process.
      */
     protected function getCommandArgs(): array
     {
-        return collect(request()->server())
-            ->only('argv')
-            ->flatten()
-            ->toArray();
+        // Try request() first for consistency, but fall back to $_SERVER directly
+        // as it may not be populated early in the boot process
+        $argv = request()->server('argv');
+
+        if (empty($argv)) {
+            $argv = $_SERVER['argv'] ?? [];
+        }
+
+        return is_array($argv) ? $argv : [];
     }
 
     /**
