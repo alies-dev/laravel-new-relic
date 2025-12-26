@@ -251,9 +251,22 @@ class NewRelicTransactionHandler
                 }
 
                 if ($this->shouldIgnoreCommand($commandStarting->command)) {
+                    // TEMPORARY: Debug to trace ignore flow
+                    if ($commandStarting->command === 'schedule:run' || $commandStarting->command === 'horizon:snapshot') {
+                        Log::info('[NewRelic] artisanCommands: IGNORING command', [
+                            'command' => $commandStarting->command,
+                        ]);
+                    }
                     app(NewRelicTransaction::class)->ignore();
 
                     return;
+                }
+
+                // TEMPORARY: Debug to trace when transaction is started
+                if ($commandStarting->command === 'schedule:run' || $commandStarting->command === 'horizon:snapshot') {
+                    Log::info('[NewRelic] artisanCommands: STARTING transaction (should NOT happen for ignored)', [
+                        'command' => $commandStarting->command,
+                    ]);
                 }
 
                 // End any previous transactions, as long as we're not still running in the same one,
@@ -285,10 +298,20 @@ class NewRelicTransactionHandler
      */
     public function shouldIgnoreCommand(?string $command = null): bool
     {
-        return $command !== null && Str::is(
-            config('new-relic.artisan.ignore'),
-            $command
-        );
+        $ignoreList = config('new-relic.artisan.ignore', []);
+        $shouldIgnore = $command !== null && Str::is($ignoreList, $command);
+
+        // TEMPORARY: Debug to trace why schedule:run isn't being ignored
+        if ($command === 'schedule:run' || $command === 'horizon:snapshot') {
+            Log::info('[NewRelic] shouldIgnoreCommand debug', [
+                'command' => $command,
+                'ignoreList' => $ignoreList,
+                'shouldIgnore' => $shouldIgnore,
+                'inArray' => in_array($command, $ignoreList, true),
+            ]);
+        }
+
+        return $shouldIgnore;
     }
 
     /**
