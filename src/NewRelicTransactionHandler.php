@@ -49,7 +49,7 @@ class NewRelicTransactionHandler
         // we won't risk unexpectedly taking down a production server.
         try {
             $this->httpRequests();
-            $this->cliRequests();
+//            $this->cliRequests();
             $this->queueHandling();
             $this->artisanCommands();
             $this->scheduledTasks();
