@@ -75,27 +75,16 @@ class NewRelicTransactionHandler
         }
 
         $commandArgs = $this->getCommandArgs();
-        $commandString = $this->getCommandString();
-        $commandName = Str::before($commandString, ' ');
+        // Extract command name directly from argv[1] instead of parsing full string
+        // This avoids issues with full paths like /home/forge/.../artisan
+        $commandName = $commandArgs[1] ?? '';
 
         // TEMPORARY: Always log CLI requests to trace the "artisan" transaction issue
         Log::info('[NewRelic] cliRequests called', [
             'commandName' => $commandName,
-            'commandString' => $commandString,
             'commandArgs' => $commandArgs,
             'serverArgv' => $_SERVER['argv'] ?? 'not set',
         ]);
-
-        // Debug: Log when we can't determine the command name properly
-        if ($commandName === '' || $commandName === 'artisan') {
-            Log::debug('[NewRelic] cliRequests: problematic command name', [
-                'commandName' => $commandName,
-                'commandString' => $commandString,
-                'commandArgs' => $commandArgs,
-                'serverArgv' => $_SERVER['argv'] ?? 'not set',
-                'requestServerArgv' => request()->server('argv'),
-            ]);
-        }
 
         // Skip early naming for ignored commands to avoid "artisan" pollution
         if ($this->shouldIgnoreCommand($commandName)) {
