@@ -79,7 +79,7 @@ class NewRelicTransactionHandler
         $commandName = Str::before($commandString, ' ');
 
         // TEMPORARY: Always log CLI requests to trace the "artisan" transaction issue
-        Log::debug('[NewRelic] cliRequests called', [
+        Log::info('[NewRelic] cliRequests called', [
             'commandName' => $commandName,
             'commandString' => $commandString,
             'commandArgs' => $commandArgs,
