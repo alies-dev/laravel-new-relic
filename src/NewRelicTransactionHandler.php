@@ -86,13 +86,18 @@ class NewRelicTransactionHandler
             'serverArgv' => $_SERVER['argv'] ?? 'not set',
         ]);
 
-        // Skip early naming for ignored commands to avoid "artisan" pollution
+        // For ignored commands, tell New Relic to ignore the transaction
+        // This prevents them from showing up as "artisan" in New Relic
         if ($this->shouldIgnoreCommand($commandName)) {
+            app(NewRelicTransaction::class)->ignore();
+
             return;
         }
 
-        // Skip if we couldn't determine a proper command name
+        // If we couldn't determine a proper command name, ignore the transaction
         if ($commandName === '' || $commandName === 'artisan') {
+            app(NewRelicTransaction::class)->ignore();
+
             return;
         }
 
